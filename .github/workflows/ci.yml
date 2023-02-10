@@ -30,16 +30,16 @@ jobs:
       uses: actions/checkout@v2
 
     ### configure aws credentials
-    # - uses: aws-actions/configure-aws-credentials@v1
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ secrets.AWS_REGION }}
     - uses: aws-actions/configure-aws-credentials@v1
       with:
-        role-to-assume: ${{ secrets.AWS_IANROLE_GITHUB }}
-        role-session-name: Github-Action-Role
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+    # - uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     role-to-assume: ${{ secrets.AWS_IANROLE_GITHUB }}
+    #     role-session-name: Github-Action-Role
+    #     aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Make deploy directory
       run: mkdir -p ./deploy
@@ -67,16 +67,16 @@ jobs:
       uses: actions/checkout@v2
 
     ### configure aws credentials
-    # - uses: aws-actions/configure-aws-credentials@v1
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ secrets.AWS_REGION }}
     - uses: aws-actions/configure-aws-credentials@v1
       with:
-        role-to-assume: ${{ secrets.AWS_IANROLE_GITHUB }}
-        role-session-name: Github-Action-Role
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+    # - uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     role-to-assume: ${{ secrets.AWS_IANROLE_GITHUB }}
+    #     role-session-name: Github-Action-Role
+    #     aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Sync s3 project to instance
       # All commands after this point have access to the AWS CLI
