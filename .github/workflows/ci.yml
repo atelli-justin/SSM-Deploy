@@ -1,0 +1,94 @@
+name: CI/CD Pipeline
+on:
+  push:
+    branches: 
+    - main
+    - test
+  pull_request:
+    branches:
+    - main
+    - test
+
+env:
+  PROJECT_NAME : SSM-Deploy
+  BUCKET_NAME : ${{ secrets.BUCKET_NAME }} 
+  AWS_REGION : ${{ secrets.AWS_REGION }}
+
+jobs:
+  test:
+    environment: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        php_version: ['8.1']
+        os: [ubuntu-latest]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+    - name: Checkout to repo
+      uses: actions/checkout@v2
+
+    ### configure aws credentials
+    # - uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: ${{ secrets.AWS_REGION }}
+    - uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ secrets.AWS_IANROLE_GITHUB }}
+        role-session-name: Github-Action-Role
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Make deploy directory
+      run: mkdir -p ./deploy
+
+    # Copy build directory to S3 (Done)
+    - name:  Copy build to S3
+      run: |
+        zip -r ./deploy/${{ env.PROJECT_NAME }}.zip . -x node_modules/**\* .git/**\* .github/**\* dist/**\* dist/**\* .credentials credentials_test/ credentials_Deploy/ deploy/ *.md
+        tree
+        aws s3 sync ${GITHUB_WORKSPACE}/deploy s3://${{ env.BUCKET_NAME }}/${{ env.PROJECT_NAME }}/latest --delete  
+  deploy:
+    needs: test
+    environment: production
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        php_version: ['8.1']
+        os: [ubuntu-latest]
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout to repo
+      uses: actions/checkout@v2
+
+    ### configure aws credentials
+    # - uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: ${{ secrets.AWS_REGION }}
+    - uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ secrets.AWS_IANROLE_GITHUB }}
+        role-session-name: Github-Action-Role
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Sync s3 project to instance
+      # All commands after this point have access to the AWS CLI
+      run: aws ssm send-command --instance-ids ${{ secrets.INSTANCE_ID }} --document-name "AWS-RunShellScript" --comment "Deploy file" --parameters '{"commands":["aws s3 sync s3://${{ env.BUCKET_NAME }}/${{ env.PROJECT_NAME }}/latest /var/www/html/${{ env.PROJECT_NAME }} --delete"],"workingDirectory":["/var/www/html/"]}'
+
+    - name: unzip project zip
+      run: aws ssm send-command --instance-ids ${{ secrets.INSTANCE_ID }} --document-name "AWS-RunShellScript" --comment "Unzip file" --parameters '{"commands":["unzip ${{ env.PROJECT_NAME }}.zip && rm ${{ env.PROJECT_NAME }}.zip"],"workingDirectory":["/var/www/html/${{ env.PROJECT_NAME }}"]}'
+
+  on-failure:
+    name: Cancelling deployment test failed
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Deploying app to production
+        run: exit 1
